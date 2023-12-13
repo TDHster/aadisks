@@ -127,6 +127,25 @@ def get_partition_size(partition):
         return None
 
 
+def get_disk_usage(partition):
+    try:
+        # Run 'df -h' command to get disk usage information
+        output = subprocess.check_output(['df', '-h', partition], universal_newlines=True)
+
+        # Split the output by lines and extract the relevant details
+        lines = output.split('\n')
+        if len(lines) > 1:
+            # Extract disk usage percentage and mount point
+            fields = lines[1].split()
+            if len(fields) >= 5:
+                usage_percent = fields[4]
+                mount_point = fields[-1]
+                return usage_percent, mount_point
+    except subprocess.CalledProcessError as e:
+        print(f"Error retrieving disk usage: {e}")
+    return None, None
+
+
 def print_dev_info(dev_list, partition=True, speed=False):
 	print("List of Physical Block Devices:")
 	for device_info in physical_block_devices:
@@ -139,7 +158,8 @@ def print_dev_info(dev_list, partition=True, speed=False):
 		partition_list = get_partitions(device_path)
 		if partition:
 			for partition in partition_list:
-				print(f'\t{partition}\t{get_partition_fstype(partition)}\t{get_partition_size(partition)}\t{get_partition_uuid(partition)}')
+				usage_percent, mount_point = get_disk_usage(partition)
+				print(f'\t{partition}\t{get_partition_fstype(partition)}\t{get_partition_size(partition)}\t{usage_percent}\t{mount_point}\t{get_partition_uuid(partition)}')
 
 
 if __name__ == '__main__':
