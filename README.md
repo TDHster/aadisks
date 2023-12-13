@@ -1,4 +1,6 @@
 # All About Disks
+Just parse ouput of standart utilites, parse, and ask some /proc for info.
+After that, make hdparm speed test.
 
 Example output:
 
