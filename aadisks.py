@@ -1,6 +1,7 @@
 import subprocess
 import re
 import pyudev
+import psutil
 
 def get_physical_block_devices():
     try:
@@ -41,7 +42,7 @@ def get_disk_speed(device):
     try:
         output = subprocess.check_output(['hdparm', '-t', device], universal_newlines=True)
         # Extracting speed using regular expression
-        match = re.search(r'= (\d+\.\d+) MB/sec', output)
+        match = re.search(r'= +(\d+(\.\d+)?) MB/sec', output)
         if match:
             speed = match.group(1)
             return speed
@@ -89,6 +90,16 @@ def get_partition_fstype(partition):
     return None
 
 
+def get_partition_size(partition):
+    try:
+        partition_usage = psutil.disk_usage(partition)
+        size_gb = partition_usage.total / (1024 ** 3)  # Convert bytes to gigabytes
+        return size_gb
+    except Exception as e:
+        print(f"Error retrieving partition size: {e}")
+        return None
+
+
 def print_dev_info(dev_list, partition=True, speed=False):
 	print("List of Physical Block Devices:")
 	for device_info in physical_block_devices:
@@ -101,7 +112,7 @@ def print_dev_info(dev_list, partition=True, speed=False):
 		partition_list = get_partitions(device_path)
 		if partition:
 			for partition in partition_list:
-				print(f'\t{partition}\t{get_partition_fstype(partition)}\t{get_partition_uuid(partition)}')
+				print(f'\t{partition}\t{get_partition_fstype(partition)}\t{get_partition_size(partition)}\t{get_partition_uuid(partition)}')
 
 
 if __name__ == '__main__':
