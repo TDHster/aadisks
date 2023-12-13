@@ -2,6 +2,8 @@ import subprocess
 import re
 import pyudev
 import psutil
+import os
+
 
 def get_physical_block_devices():
     try:
@@ -90,12 +92,37 @@ def get_partition_fstype(partition):
     return None
 
 
-def get_partition_size(partition):
+def _get_partition_size(partition):
     try:
         partition_usage = psutil.disk_usage(partition)
+        print(f'{partition_usage=}')
         size_gb = partition_usage.total / (1024 ** 3)  # Convert bytes to gigabytes
         return size_gb
     except Exception as e:
+        print(f"Error retrieving partition size: {e}")
+        return None
+
+
+def __get_partition_size(partition):
+    try:
+        total_size = os.statvfs(partition).f_frsize * os.statvfs(partition).f_blocks
+        size_gb = total_size / (1024 ** 3)  # Convert bytes to gigabytes
+        return size_gb
+    except Exception as e:
+        print(f"Error retrieving partition size: {e}")
+        return None
+
+def get_partition_size(partition):
+    try:
+        df_output = subprocess.check_output(['df', '-h', partition], universal_newlines=True)
+        lines = df_output.strip().split('\n')
+        if len(lines) > 1:
+            size = lines[1].split()[1]
+            #size_gb = int(size) / (1024 ** 3)  # Convert bytes to gigabytes
+            return size
+        else:
+            return None
+    except subprocess.CalledProcessError as e:
         print(f"Error retrieving partition size: {e}")
         return None
 
