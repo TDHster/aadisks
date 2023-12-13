@@ -140,6 +140,8 @@ def get_disk_usage(partition):
             if len(fields) >= 5:
                 usage_percent = fields[4]
                 mount_point = fields[-1]
+                if mount_point == '/dev':
+                    mount_point = ''	
                 return usage_percent, mount_point
     except subprocess.CalledProcessError as e:
         print(f"Error retrieving disk usage: {e}")
