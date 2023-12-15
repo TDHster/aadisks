@@ -15,6 +15,10 @@ bay = PrettyTable()
 bay.set_style(style=PLAIN_COLUMNS)
 bay.align = "l"
 
+diskspeed = PrettyTable()
+diskspeed.set_style(style=PLAIN_COLUMNS)
+diskspeed.align = "l"
+
 
 def get_physical_block_devices():
     try:
@@ -171,8 +175,6 @@ def get_partition_size(partition):
         return None #, None
 
 
-
-
 def get_disk_usage(partition):
     try:
         # Run 'df -h' command to get disk usage information
@@ -195,23 +197,22 @@ def get_disk_usage(partition):
 
 
 def print_dev_info(dev_list, partition=True, speed=False):
-    print("List of Physical Block Devices:")
     bay.field_names = ["Port", "Type", "Device", "Size", "Vendor", "Serial"] 
+    diskspeed.field_names = ["Port", "Type", "Device", "Size", "Vendor", "Serial", 'Read speed'] 
     parted.field_names = ["Device", "Partition", "FS", "Size", "Usage", "Mounted", "Serial/UUID"] 
     # partition_table.field_names = ["Port", "Type", "Device", "Partition", "FS", "Size(usage)", "Mounted", "Vendor", "Serial/UUID"] 
     for device_info in physical_block_devices:
         port, device_type, device_path, size = device_info
         vendor, serial = get_vendor_and_serial(device_path)
-        # if speed:    
-        if False:    
+        if speed:    
+            # if False:    
             #print(f"Port: {port}\t Type: {device_type}\t Device: {device_path}\t Size: {size} {vendor} {serial}\tRead speed: {get_disk_speed(device_path)} Mbit/s")
             # x.add_row([port, device_type, device_path, size, vendor,serial, f'{get_disk_speed(device_path)} Mbit/s'])
-            pass
+            diskspeed.add_row([port, device_type, device_path, size, vendor, serial, f'{get_disk_speed(device_path)} Mbit/s'])
         else:    
             bay.add_row([port, device_type, device_path, size, vendor, serial])
         partition_list = get_partitions(device_path)
         if partition:
-            # if False:
             parted.add_row([device_path, "", "", size, "", "", ""])
             for partition in partition_list:
                 usage_percent, mount_point = get_disk_usage(partition)
@@ -220,20 +221,23 @@ def print_dev_info(dev_list, partition=True, speed=False):
                 # x.field_names = ["Port", "Type", "Device type", "Device", "Partition", "FS", "Size", "Vendor", "Serial", "Read speed"] 
                 parted.add_row(["", partition, get_partition_fstype(partition), get_partition_size(partition), usage_percent, mount_point, get_partition_uuid(partition)])
 
+    print("List of Physical Block Devices:")
     print(bay)
     bay.clear()
-    print()
-    print(parted)
-    parted.clear()
+    if partition:
+        print(parted)
+        parted.clear()
+    if speed:
+        print(diskspeed)
+        diskspeed.clear()
 
 
 if __name__ == '__main__':
-
     physical_block_devices = get_physical_block_devices()
     # print_dev_info(physical_block_devices, partition=False)
     # print()
     print_dev_info(physical_block_devices, partition=True)
     # print()
-    # print_dev_info(physical_block_devices, partition=False, speed=True)
+    print_dev_info(physical_block_devices, partition=False, speed=True)
 
 
