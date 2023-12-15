@@ -6,10 +6,14 @@ import os
 from prettytable import PrettyTable, PLAIN_COLUMNS
 
 
-x = PrettyTable(padding_width=0, left_padding_width=0, right_padding_width=0)
+parted = PrettyTable(padding_width=0, left_padding_width=0, right_padding_width=0)
 #x.set_style(border=False)
-x.set_style(style=PLAIN_COLUMNS)
-x.align = "l"
+parted.set_style(style=PLAIN_COLUMNS)
+parted.align = "l"
+
+bay = PrettyTable()
+bay.set_style(style=PLAIN_COLUMNS)
+bay.align = "l"
 
 
 def get_physical_block_devices():
@@ -84,8 +88,8 @@ def get_partition_uuid(partition):
     # Check if the provided partition device is a block device
     if udev_device.get('DEVTYPE') == 'partition':
         uuid = udev_device.get('ID_FS_UUID')
-        if uuid == None: uuid = ''
-        return uuid
+        if uuid == None: return ''
+        return "UUID=" + str(uuid)
     
     return None
 
@@ -123,19 +127,50 @@ def __get_partition_size(partition):
         print(f"Error retrieving partition size: {e}")
         return None
 
+# def get_partition_size(partition):
+#     try:
+#         df_output = subprocess.check_output(['df', '-h', partition], universal_newlines=True)
+#         lines = df_output.strip().split('\n')
+#         if len(lines) > 1:
+#             size = lines[1].split()[1]
+#             #size_gb = int(size) / (1024 ** 3)  # Convert bytes to gigabytes
+#             return size
+#         else:
+#             return ""
+#     except subprocess.CalledProcessError as e:
+#         print(f"Error retrieving partition size: {e}")
+#         return None
+
+# def get_partition_size(partition):
+#     try:
+#         cmd = f"df -h {partition} | grep {partition} | awk ' {{print $2}}'"  # Use awk to extract the size (field 2) from the second line
+#         size_output = subprocess.check_output(cmd, shell=True, universal_newlines=True)
+#         size = size_output.strip()
+#         return size
+#     except subprocess.CalledProcessError as e:
+#         print(f"Error retrieving partition size: {e}")
+#         return None
+
 def get_partition_size(partition):
     try:
-        df_output = subprocess.check_output(['df', '-h', partition], universal_newlines=True)
-        lines = df_output.strip().split('\n')
-        if len(lines) > 1:
-            size = lines[1].split()[1]
-            #size_gb = int(size) / (1024 ** 3)  # Convert bytes to gigabytes
-            return size
+        # Run lsblk command to get information about the partition
+        lsblk_output = subprocess.check_output(['lsblk', '-n', '-o', 'SIZE,FSTYPE', partition], universal_newlines=True)
+        lines = lsblk_output.strip().split('\n')
+
+        if len(lines) > 0:
+            # Extract size and filesystem type (FSTYPE) from lsblk output
+            info = lines[0].split()
+            if len(info) == 2:
+                size = info[0]
+                # fstype = info[1]
+                return size #, fstype
         else:
-            return ""
+            return None #, None
     except subprocess.CalledProcessError as e:
-        print(f"Error retrieving partition size: {e}")
-        return None
+        print(f"Error retrieving partition info: {e}")
+        return None #, None
+
+
 
 
 def get_disk_usage(partition):
@@ -161,7 +196,9 @@ def get_disk_usage(partition):
 
 def print_dev_info(dev_list, partition=True, speed=False):
     print("List of Physical Block Devices:")
-    x.field_names = ["Port", "Type", "Device", "Partition", "FS", "Size(usage)", "Mounted", "Vendor", "Serial/UUID"] 
+    bay.field_names = ["Port", "Type", "Device", "Size", "Vendor", "Serial"] 
+    parted.field_names = ["Device", "Partition", "FS", "Size", "Usage", "Mounted", "Serial/UUID"] 
+    # partition_table.field_names = ["Port", "Type", "Device", "Partition", "FS", "Size(usage)", "Mounted", "Vendor", "Serial/UUID"] 
     for device_info in physical_block_devices:
         port, device_type, device_path, size = device_info
         vendor, serial = get_vendor_and_serial(device_path)
@@ -171,27 +208,30 @@ def print_dev_info(dev_list, partition=True, speed=False):
             # x.add_row([port, device_type, device_path, size, vendor,serial, f'{get_disk_speed(device_path)} Mbit/s'])
             pass
         else:    
-            x.add_row([port, device_type, device_path, "", "" ,size, "", vendor, serial])
+            bay.add_row([port, device_type, device_path, size, vendor, serial])
         partition_list = get_partitions(device_path)
         if partition:
             # if False:
+            parted.add_row([device_path, "", "", size, "", "", ""])
             for partition in partition_list:
                 usage_percent, mount_point = get_disk_usage(partition)
                 # print(f'\t{partition}\t{get_partition_fstype(partition)}\t{get_partition_size(partition)}\t{usage_percent}\t{mount_point}\t{get_partition_uuid(partition)}')
                 # x.add_row([port, device_type, device_path, size, vendor, serial])
                 # x.field_names = ["Port", "Type", "Device type", "Device", "Partition", "FS", "Size", "Vendor", "Serial", "Read speed"] 
-                x.add_row(["", "", "", partition, get_partition_fstype(partition), get_partition_size(partition) + " " + usage_percent, mount_point, "", "UUID=" + str(get_partition_uuid(partition))])
+                parted.add_row(["", partition, get_partition_fstype(partition), get_partition_size(partition), usage_percent, mount_point, get_partition_uuid(partition)])
 
-
-    print(x)
-    x.clear()
+    print(bay)
+    bay.clear()
+    print()
+    print(parted)
+    parted.clear()
 
 
 if __name__ == '__main__':
 
     physical_block_devices = get_physical_block_devices()
-    print_dev_info(physical_block_devices, partition=False)
-    print()
+    # print_dev_info(physical_block_devices, partition=False)
+    # print()
     print_dev_info(physical_block_devices, partition=True)
     # print()
     # print_dev_info(physical_block_devices, partition=False, speed=True)
